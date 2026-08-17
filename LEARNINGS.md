@@ -192,6 +192,39 @@ kolmas kerta sama itsenäinen korjaus, ei enää sattumaa.
 ei duplikaattilistoja. Flow näyttää skaalautuvan lineaarisesti ainakin 1→10 albumiin ilman
 statea tai aliagentti-pilkkomista.
 
+### 2026-08-17 — kappalehävikin korjaus + 15 albumin erätesti
+
+**Ongelma joka korjattiin ennen testiä:** `apple_music_search_tracks`-hakuvaiheella ei ollut
+mitään ohjeistusta tarkistaa osuiko haku oikeasti oikeaan kappaleeseen, eikä ohjetta mitä tehdä
+jos haku epäonnistuu tai osuu väärin (nähty jo aiemmin: "Ripper (CL) The End of Universe" osui
+LL Cool J:hin). Malli oli korjannut tämän itse joka kerta, mutta ilman ohjeistusta se oli
+tuuria, ei taattua käytöstä — riski että joskus se EI korjaisi ja poimittu kappale jäisi
+hiljaa pois soittolistasta, tai pahempaa, väärä kappale päätyisi tilalle.
+
+**Fix (src/agents/gemma.ts, flow-vaihe 3):** promptiin lisätty eksplisiittinen ohje —
+tarkista haun palauttaman track-in `name`/`artistName` vastaavuus haettuun ennen käyttöä; jos
+ei täsmää, yritä kerran uudelleen yksinkertaistetulla haulla (esim. pudota artistin
+sulkeissa oleva maatunnus); jos ei silti löydy, ÄLÄ korvaa toisella kappaleella äläkä jätä
+hiljaa pois — merkitse "not found on Apple Music" lopputulokseen käyttäjän tietoon.
+
+**Testi:** 15 albumia neljässä erässä (3+4+4+4), joka erä oma live-ajo Gemmalla, oikea kirjoitus
+Apple Musiciin (New Music #4 → #7, jatkoi numerointia oikein #3:n jälkeen). Yhteensä 11/15
+albumia tuotti poiminnan (11 albumia × 1-2 kappaletta = 22 poimittua kappaletta), loput 4/15
+skipattiin perustellusti (Manson, Sallow Moth, Thurnin, Saidan — kussakin arvostelu ei nimeä
+selkeää yksittäistä highlightia, mm. Thurnin: "vaikea erottaa yhtä kappaletta saumattomasta
+kokonaisuudesta").
+
+**Tulos: 22/22 poimittua kappaletta löytyi ja tallentui Apple Musiciin, 0 hävikkiä, 0 väärää
+korvausta.** Itsekorjautuva haku (LL Cool J -tyyppinen väärähaku → yksinkertaistettu uusi haku)
+nähtiin taas Ripperillä, korjautui nyt eksplisiittisen ohjeen mukaisesti ensimmäisellä
+yrityksellä. Ei yhtään "not found"-tapausta koko 15 albumin erässä — kaikki haut osuivat
+oikein joko suoraan tai yhdellä yksinkertaistetulla uusintahaulla.
+
+**Vahvistettu vakaaksi:** kappalehävikkiä ei havaittu 15 albumin/22 kappaleen otannassa
+promptikorjauksen jälkeen. Ei tarvetta statelle tai aliagentti-pilkkomiselle tälläkään
+skaalalla — nelierä-ajo (3+4+4+4) toimi täysin luotettavasti yhden agentin sisällä joka
+kerta.
+
 **usePersistentState — arvioitu, ei otettu käyttöön.** Harkittiin `usePersistentState`-koukun
 käyttöä poimintojen säilyttämiseen tiivistyksen yli, mutta kolmen albumin skaalalla kumpaakaan
 oikeaa löydettyä bugia (#1, #2) ei aiheuttanut kontekstin hukka — molemmat olivat tavallisia
