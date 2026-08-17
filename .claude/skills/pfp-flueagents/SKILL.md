@@ -68,7 +68,8 @@ Don't jump straight to the full task. Prove the small case, then grow one dimens
      theory is not a diagnosis — the Death Cab "failed to fetch" case in this project's history
      was blamed on context limits at first, and turned out to be a missing retry instead).
 4. **Fix at the smallest scope that explains the failure.** Don't rewrite the whole prompt for
-   one bad edge case.
+   one bad edge case. Before applying it, write the reasoning down as a plan (see below) — a
+   fix you can't justify in writing yet is a guess, not a diagnosis.
 5. **Re-run at the SAME complexity level until it's stable** (aim for a few clean runs in a
    row, not just one) before moving back up to the level that broke. Small local models are
    not fully deterministic — one clean run doesn't prove a fix, and one bad run after a fix
@@ -86,6 +87,39 @@ playlist is not reversible via the API (no delete/rename — see AGENTS.md). Rea
 (fetch reviews, search tracks) doesn't need per-step confirmation; the moment a test would
 create or add to a real playlist, check with the user first, same as any other hard-to-reverse
 action.
+
+## Hypothesis-first fixes (plans/)
+
+Once a failure is diagnosed and you're about to change a prompt or tool, write the reasoning
+into `plans/<date>-<short-topic>.md` before touching any code — not just in the conversation.
+The reason this earns a file instead of staying in chat: a debug round can outlive the session
+(context compaction, a restart, picking it back up tomorrow), and a file survives that while a
+chat message doesn't. Coming back to a plan file mid-round means resuming from the actual
+reasoning instead of re-deriving it from scratch or, worse, from a compacted summary that
+dropped the detail that mattered.
+
+A plan has three parts, written before the fix:
+
+1. **Observed problem** — the verbatim symptom, not "it failed."
+2. **Hypothesis** — why this is happening, and a *specific, checkable prediction* of what
+   Gemma will do differently once fixed (not "it should work better"). The reliable way to get
+   this prediction: read the new prompt the way Gemma will receive it, and mentally step
+   through it yourself — the same trick you already use to read a review and predict which
+   tracks Gemma should pick. If your own walkthrough of the fixed instructions doesn't
+   naturally land on the desired behavior, the fix probably won't make Gemma land there either
+   — that's worth catching before spending a live run on it, not after.
+3. **The change** — exactly what file/prompt text changed, a line or two.
+
+After the live run, add a fourth part:
+
+4. **Actual vs. predicted** — what really happened, and whether it matched. A mismatch is data,
+   not a wasted run: it means the model did something your walkthrough didn't anticipate, which
+   is worth a sentence on its own before trying another fix.
+
+Once the fix is confirmed (or the round ends), fold the outcome into `LEARNINGS.md` as usual —
+that file stays the curated, durable record; the plan file is the scratchpad that got you
+there. Leave the plan file in place afterward rather than deleting it — it's a cheap audit
+trail of the reasoning that produced the LEARNINGS.md entry, not just its conclusion.
 
 ## Recording learnings
 
