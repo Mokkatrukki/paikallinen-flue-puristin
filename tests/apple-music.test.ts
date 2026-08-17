@@ -173,6 +173,24 @@ describe('tools', () => {
 		expect(result.output).toEqual({ playlists: [{ playlistId: 'p.1', name: 'Ajolista', trackCount: 3 }] });
 	});
 
+	test('apple_music_list_playlists paginates past 100 results instead of silently truncating', async () => {
+		saveUserToken({ musicUserToken: 'utok', storefront: 'fi', savedAt: Date.now() });
+		const page1 = Array.from({ length: 100 }, (_, i) => ({ id: `p.${i}`, attributes: { name: `Lista ${i}` } }));
+		const page2 = [{ id: 'p.100', attributes: { name: 'Uusin lista' } }];
+		let calls = 0;
+		stubFetch((url) => {
+			calls++;
+			const offset = url.searchParams.get('offset');
+			if (offset === '0') return new Response(JSON.stringify({ data: page1 }), { status: 200 });
+			if (offset === '100') return new Response(JSON.stringify({ data: page2 }), { status: 200 });
+			throw new Error(`unexpected offset ${offset}`);
+		});
+		const result = await appleMusicListPlaylists.run({ data: {}, ...ctx });
+		expect(calls).toBe(2);
+		expect(result.output.playlists).toHaveLength(101);
+		expect(result.output.playlists[100]).toEqual({ playlistId: 'p.100', name: 'Uusin lista' });
+	});
+
 	test('apple_music_get_playlist combines playlist metadata and tracks', async () => {
 		saveUserToken({ musicUserToken: 'utok', storefront: 'fi', savedAt: Date.now() });
 		stubFetch((url) => {

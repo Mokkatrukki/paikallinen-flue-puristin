@@ -9,6 +9,13 @@ import { dirname } from 'node:path';
 const BASE_URL = 'https://api.music.apple.com/v1';
 const RATE_MS = 150;
 
+// Set PFP_DEBUG=1 to see every request/response on stderr — turned this on
+// while debugging the Apple Music search/playlist flow so failures show up
+// immediately instead of being inferred from a Gemma transcript after the fact.
+function debugLog(...args: unknown[]): void {
+	if (process.env.PFP_DEBUG) console.error('[apple-music]', ...args);
+}
+
 function env(name: string): string {
 	const value = process.env[name];
 	if (!value) {
@@ -188,16 +195,19 @@ export async function apiRequest(
 		headers['Music-User-Token'] = userToken.musicUserToken;
 	}
 
+	debugLog(opts.method ?? 'GET', url.toString());
 	const res = await fetch(url, {
 		method: opts.method ?? 'GET',
 		headers,
 		body: opts.body != null ? JSON.stringify(opts.body) : undefined,
 	});
+	debugLog('->', res.status, url.pathname);
 
 	if (res.status === 204) return null;
 
 	if (res.status === 429 && !_retried) {
 		const retryAfterMs = Number(res.headers.get('Retry-After') ?? '3') * 1000;
+		debugLog('429, retrying after', retryAfterMs, 'ms');
 		await new Promise((r) => setTimeout(r, retryAfterMs));
 		return apiRequest(path, opts, true);
 	}
@@ -207,12 +217,14 @@ export async function apiRequest(
 	// an unsupported method (PATCH/PUT/DELETE on playlists — see
 	// src/tools/apple-music.ts) just fails the same way twice, which is fine.
 	if (res.status === 401 && !_retried) {
+		debugLog('401, retrying once');
 		await new Promise((r) => setTimeout(r, 600));
 		return apiRequest(path, opts, true);
 	}
 
 	if (!res.ok) {
 		const body = await res.text();
+		debugLog('FAILED', res.status, body.slice(0, 300));
 		throw new AppleMusicError(res.status, `Apple Music API ${res.status}: ${body.slice(0, 300)}`);
 	}
 

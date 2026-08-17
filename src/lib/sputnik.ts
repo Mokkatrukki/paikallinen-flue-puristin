@@ -6,6 +6,11 @@
 const BASE_URL = 'https://www.sputnikmusic.com';
 const USER_AGENT = 'Mozilla/5.0 (compatible; pfp-bot/0.1; +https://github.com/)';
 
+// Set PFP_DEBUG=1 to see every request/response on stderr.
+function debugLog(...args: unknown[]): void {
+	if (process.env.PFP_DEBUG) console.error('[sputnik]', ...args);
+}
+
 export class SputnikError extends Error {
 	constructor(public status: number, message: string) {
 		super(message);
@@ -13,10 +18,35 @@ export class SputnikError extends Error {
 	}
 }
 
-async function fetchHtml(path: string): Promise<string> {
+async function fetchHtml(path: string, _retried = false): Promise<string> {
 	const url = path.startsWith('http') ? path : `${BASE_URL}${path}`;
-	const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+	debugLog('GET', url);
+	let res: Response;
+	try {
+		res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+	} catch (err) {
+		debugLog('NETWORK ERROR', (err as Error).message);
+		// Transient network error (DNS blip, reset, timeout) — one retry before giving up.
+		if (!_retried) {
+			await new Promise((r) => setTimeout(r, 500));
+			return fetchHtml(path, true);
+		}
+		throw new SputnikError(0, `Sputnikmusic: verkkovirhe haettaessa ${url}: ${(err as Error).message}`);
+	}
+	debugLog('->', res.status, url);
+	if (res.status === 429 && !_retried) {
+		const retryAfterMs = Number(res.headers.get('Retry-After') ?? '3') * 1000;
+		debugLog('429, retrying after', retryAfterMs, 'ms');
+		await new Promise((r) => setTimeout(r, retryAfterMs));
+		return fetchHtml(path, true);
+	}
+	if (res.status >= 500 && !_retried) {
+		debugLog(res.status, 'retrying once');
+		await new Promise((r) => setTimeout(r, 500));
+		return fetchHtml(path, true);
+	}
 	if (!res.ok) {
+		debugLog('FAILED', res.status);
 		throw new SputnikError(res.status, `Sputnikmusic ${res.status} haettaessa ${url}`);
 	}
 	return res.text();

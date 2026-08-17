@@ -22,8 +22,13 @@ const Playlist = v.object({
 export const appleMusicSearchTracks = defineTool({
 	name: 'apple_music_search_tracks',
 	description:
-		'Hae kappaleita Apple Musicin katalogista nimellä ja/tai artistilla. Palauttaa track-ID:t, ' +
-		'joita tarvitaan apple_music_add_tracks- ja apple_music_create_playlist-kutsuihin.',
+		'Hae kappaleita Apple Musicin katalogista. AINA sisällytä sekä artistin nimi että kappaleen ' +
+		'nimi query-parametrissa (esim. "Death Cab for Cutie Full of Stars"), ei pelkkää kappaleen ' +
+		'nimeä — pelkkä yleinen kappalenimi voi osua hiljaa väärään, samannimiseen kappaleeseen ' +
+		'toisella artistilla eikä palauta mitään virhettä (varmistettu livenä: hakusana "Full of ' +
+		'Stars" ilman artistia palautti pelkkää ambient-musiikkia, ei Death Cab for Cutien kappaletta ' +
+		'— sama haku artistin kanssa löysi oikean heti). Palauttaa track-ID:t, joita tarvitaan ' +
+		'apple_music_add_tracks- ja apple_music_create_playlist-kutsuihin.',
 	input: v.object({
 		query: v.pipe(v.string(), v.minLength(1)),
 		limit: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(25)), 10),
@@ -49,15 +54,28 @@ export const appleMusicSearchTracks = defineTool({
 
 export const appleMusicListPlaylists = defineTool({
 	name: 'apple_music_list_playlists',
-	description: 'Listaa käyttäjän Apple Music -kirjaston kaikki soittolistat ID:llä ja kappalemäärällä.',
+	description:
+		'Listaa käyttäjän Apple Music -kirjaston KAIKKI soittolistat (sivuttaa automaattisesti — ei ' +
+		'katkea 100 kappaleeseen). HUOM: tämä endpoint ei palauta kappalemäärää (Applen API ei sisällä ' +
+		'sitä listausvastauksessa, verified live) — trackCount on aina tyhjä täältä, hae se erikseen ' +
+		'apple_music_get_playlistilla jos tarvitset sen yhdelle listalle. Käytä tätä AINA ennen ' +
+		'apple_music_create_playlistia kun tarkoitus on löytää-tai-luo nimellä — muuten vanha ' +
+		'samanniminen lista voi jäädä huomaamatta ja syntyy duplikaatti (tapahtui livenä kun soittolistoja ' +
+		'oli yli 100 eikä sivutusta ollut).',
 	input: v.object({}),
 	output: v.object({ playlists: v.array(Playlist) }),
 	async run() {
-		const res = await apiRequest('/me/library/playlists', {
-			params: { limit: 100 },
-			requireUserToken: true,
-		});
-		const items: any[] = res.data ?? [];
+		const items: any[] = [];
+		const pageSize = 100;
+		for (let offset = 0; ; offset += pageSize) {
+			const res = await apiRequest('/me/library/playlists', {
+				params: { limit: pageSize, offset },
+				requireUserToken: true,
+			});
+			const page: any[] = res.data ?? [];
+			items.push(...page);
+			if (page.length < pageSize) break;
+		}
 		return {
 			output: {
 				playlists: items.map((p) => ({
