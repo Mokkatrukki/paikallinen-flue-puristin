@@ -59,4 +59,19 @@ name, same as every prior run).
 
 ## Actual vs. predicted
 
-(fill in after the next live 15-album run)
+**Matched.** Live re-run (same 15 albums, one Gemma run) showed exactly 15 separate `tool task`
+lines in the transcript, one per album, dispatched together and running interleaved/parallel
+(sputnik fetches and Apple Music searches for different albums visibly interleaved in the
+debug log). August Burns Red — the album that got cut off last time — was processed fully this
+run (2 tracks added).
+
+Result: playlist "New Music #10" created, 11/15 albums contributed tracks (Marilyn Manson,
+Sallow Moth, Thurnin, Saidan legitimately 0 — same four as every prior run on this album set,
+consistent with their reviews not naming a specific highlight track). Of the 11 that
+contributed, 10 got exactly 2 tracks; Warning got 1 (its review only explicitly praises the
+title track by name, nothing else — correct per the picking rule, not a truncation).
+
+No mismatch between prediction and outcome — the fix (explicit "N separate task calls, never
+combine into one" instruction, both in the parent flow and as a defensive backstop in
+`AlbumPicker`'s own instructions) fully resolved the serialization/truncation bug from the
+first attempt. Folded into `LEARNINGS.md`.

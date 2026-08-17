@@ -232,3 +232,44 @@ koodivirheitä. Päätös: ei lisätä statea ilman todistettua tarvetta ("aloit
 ja kasvatetaan kompleksisuutta pikkuhiljaa" -periaate) — otetaan käyttöön vasta kun isomman
 skaalan (esim. koko ~24 albumin best-new-music-lista kerralla) testi oikeasti näyttää
 kontekstin hukkaavan tietoa, ei ennakoivasti.
+
+### 2026-08-17 — 15 albumia YHDELLÄ ajolla, YHTEEN soittolistaan: aliagentti-arkkitehtuuri
+
+**Uusi tavoite tässä kierroksessa:** aiemmat testit (1, 3, 4x4, 10 albumia) ajoivat aina
+useamman ERI Gemma-ajon, useamman ERI soittolistan. Tavoite muuttui: 15 albumia YHDESSÄ
+Gemma-ajossa, kaikki YHTEEN soittolistaan — tää olisi ylittänyt 65536 tokenin kontekstin jos
+15 täyttä arvostelutekstiä olisi käsitelty yhden agentin sisällä sarjassa (aiempi malli).
+
+**Ratkaisu: `useSubagent` (Flue tukee natiivisti, ks. `npx flue docs read guide/subagents`).**
+Uusi `album_picker`-aliagentti (`src/agents/gemma.ts`) käsittelee YHDEN albumin kokonaan
+(arvostelu → poiminta → Apple Music -haku → lisäys suoraan soittolistalle) omassa tuoreessa
+kontekstissaan — vain sen lyhyt lopputiivistelmä palaa vanhemmalle, ei koskaan täyttä
+arvostelutekstiä. Track-ID:t eivät myöskään koskaan kulje tekstinä vanhemman läpi (aliagentti
+kutsuu `apple_music_add_tracks` suoraan valmiiksi luotuun playlistId:hen) — ei
+transkriptioriskiä pitkien numero-ID:iden kopioinnissa.
+
+**Ensimmäinen yritys epäonnistui skaalassa (13/15 albumia, katkesi kesken).** Debug-loki
+paljasti: parent-Gemma dispatchasi vain YHDEN `task`-kutsun sisältäen kaikki 15 albumia yhden
+promptin sisällä, sen sijaan että olisi tehnyt 15 erillistä kutsua (kuten 3 albumin testissä
+meni oikein — 3 erillistä "tool task" nähtiin). Tuo yksi aliagentti-instanssi prosessoi 15
+albumia SARJASSA omassa kontekstissaan ja loppui kesken viimeisen albumin (August Burns Red)
+kohdalla, juuri ennen kappaleen hakua/lisäystä — 4 legit-nollaa oikein, mutta 1 albumi jäi
+kokonaan käsittelemättä.
+
+**Juurisyy:** "dispatch every album's task together in one batch" -ohje oli epäselvä isommalla
+N:llä — 3 albumilla malli tulkitsi sen oikein (3 erillistä kutsua), 15:llä se pakkasi kaikki
+yhteen "batch"-kutsuun.
+
+**Fix (ks. `plans/2026-08-17-15-album-single-run-subagent-fan-out.md` täydelle
+hypoteesi/ennuste-käsittelylle):** kolme päällekkäistä ohjetta — (1) parent-prompti: "dispatch
+a SEPARATE task tool call... ONE call per album... N separate task calls... never combine",
+(2) subagent-tooli-kuvaus: sama viesti tool-tasolla, (3) `AlbumPicker`:n oma prompti puolustava
+backstop: "process EXACTLY ONE album... if given more than one, process only the first and say
+so" — muuttaa epäonnistumisen näkyväksi jos parent silti mokaa dispatchin.
+
+**Vahvistettu: fix toimi täsmälleen ennustetusti.** Uusintaligo näytti 15 erillistä "tool task"
+-riviä, kaikki albumit käsiteltiin loppuun asti mukaan lukien August Burns Red. Playlist "New
+Music #10": 11/15 albumia tuotti kappaleita (Manson, Sallow Moth, Thurnin, Saidan legit 0 —
+samat neljä kuin joka aiemmassa ajossa tällä albumisetillä), 10/11 sai täyden 2/2, Warning 1/1
+(arvostelu nimeää vain nimikkokappaleen — oikea, ei bugi). Aliagentti-arkkitehtuuri skaalautuu
+15 albumiin yhdessä ajossa ilman kontekstin hukkaa, ilman transkriptiovirheitä, rinnakkaisena.
