@@ -17,3 +17,11 @@ T4|x|pfp-flueagents|Testaa flow (sputnik-lista → review-poiminta → Apple Mus
 
 ## §B
 B1|2026-08-17|Idea, ei vielä speksattu: rinnakkainen output Apple Music -soittolistan LISÄKSI — genrellä ryhmitelty sivu/tietokanta ("uudet pop levyt viikolle" -tyyppiset ryhmät, muutama levy per ryhmä, muutama kappale per levy, linkki levylle + lyhyt "miksi tämä on kova" -teksti per levy). Genre päätellään lopulta oikeasta rajapinnasta (ei Gemman päättelemänä, käyttäjä täsmensi), mutta Gemmalta halutaan lisäksi niche-tyylisiä genre/vibe-kuvauksia tekstistä. Tallennus aloitetaan pienestä (käyttäjä mainitsi mahdollisen tietokannan myöhemmin, ei heti). Tulevaisuudessa: useampi lähdejärjestelmä samalle datalle, saman albumin toistuminen useasta lähteestä nostaisi sen esiin ("hyvä syystä X" -korostus). Ei vielä auki: mistä rajapinnasta genre haetaan, tietokannan muoto, sivun tarkka rakenne — nämä pitää grillata ennen kuin tästä kirjoitetaan §T-taskeja.
+
+Tutkimuslöydös (2026-08-17, 3 arvostelusivua tarkastettu — Sallow Moth, Marilyn Manson, Ripper (CL) — sama kaava kaikissa): Sputnikin arvostelusivulla on 4 rakenteellisesti poimittavaa kenttää joita `sputnik_get_album_review` ei vielä palauta, regexillä ilman LLM:ää:
+- **Review Summary** (`Review Summary:</b> TEKSTI`) — arvostelijan itse kirjoittama yhden lauseen hook, käy suoraan "miksi tämä on kova" -blurbiksi ilman Gemman tulkintaa (esim. "Beautiful evil, hail to darkness").
+- **Canonical review-linkki** (`<link rel="canonical" href="...">`, muotoa `/review/<id>/...`) — eri URL kuin nyt käytetty `/album/<id>/...` fetch-URL, tämä on se "oikea" linkki arvosteluun sivulle näytettäväksi.
+- **Arvostelija** (`<a href=/user/USERNAME>Näyttönimi</a>`).
+- **Arvostelun päivämäärä** (tekstimuotoa "August 16th, 2026 |").
+
+Kun B1 grillataan, nämä 4 kenttää ovat valmis ehdokas `sputnik_get_album_review`-outputin laajennukseksi (pieni pfp-fluetools-task) — genre/vibe jää edelleen erikseen ratkaistavaksi (joko oikea rajapinta tai Gemman niche-päättely, ei kumpikaan vielä päätetty).
