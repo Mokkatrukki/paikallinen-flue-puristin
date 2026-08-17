@@ -174,6 +174,24 @@ kompleksisuustasolla (1-3 albumia/ajo). Ei havaittu tarvetta statelle tai aliage
 pilkkomiselle tällä skaalalla (ks. käyttäjän kanssa käyty pohdinta ennen tätä testikierrosta) —
 molemmat testiajot (1 albumi, 3 albumia) olivat yhden agentin sisällä täysin luotettavia.
 
+### 2026-08-17 — tuotantoajo: 10 albumia (ei enää testi, oikea käyttö)
+
+**Ajettu:** käyttäjän pyynnöstä oikea täysimittainen ajo 10 albumilla (isompi hyppy kuin
+edellinen 3 albumin taso, käyttäjän oma päätös skaalata suoraan). Yksi puhdas ajo, ei
+Claude-oraakkelivertailua tällä kertaa (tuotantokäyttö, ei uusi reliability-kysymys).
+
+**Tulos:** 5/10 albumia tuotti poiminnan (Ripper, mary in the junkyard, Muse, Warning, Olivia
+Rodrigo — kukin 1 kappale), 5/10 skippautui perustellusti 0 kappaleella (mm. Thurnin: arvostelu
+sanoo suoraan "vaikea poimia yksittäistä kappaletta, levy soi saumattomasti" — malli tunnisti
+tämän eikä pakottanut poimintaa). Numerointi jatkui oikein edellisistä ajoista (#1, #2 löytyi
+→ loi #3). Sama itsekorjautuva Apple Music -haku nähtiin taas ("Ripper (CL) The End of
+Universe" epäonnistui → kokeili "Ripper The End of Universe" ilman ohjausta, osui oikein) —
+kolmas kerta sama itsenäinen korjaus, ei enää sattumaa.
+
+**Ei havaittuja ongelmia 10 albumin skaalalla.** Ei kontekstin hukkaa, ei väärää numerointia,
+ei duplikaattilistoja. Flow näyttää skaalautuvan lineaarisesti ainakin 1→10 albumiin ilman
+statea tai aliagentti-pilkkomista.
+
 **usePersistentState — arvioitu, ei otettu käyttöön.** Harkittiin `usePersistentState`-koukun
 käyttöä poimintojen säilyttämiseen tiivistyksen yli, mutta kolmen albumin skaalalla kumpaakaan
 oikeaa löydettyä bugia (#1, #2) ei aiheuttanut kontekstin hukka — molemmat olivat tavallisia
